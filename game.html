@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Snake Game - Play</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <header>
+        <h1>Snake Game</h1>
+    </header>
+    <main>
+        <div id="scoreDisplay">Score: 0 | High Score: <span id="highScore">0</span></div>
+        <canvas id="gameCanvas" width="320" height="240"></canvas>
+        <div id="controls">
+            <button id="up">↑</button>
+            <button id="left">←</button>
+            <button id="down">↓</button>
+            <button id="right">→</button>
+        </div>
+        <button id="playAgain">Play Again</button>
+    </main>
+
+    <script>
+        const canvas = document.getElementById("gameCanvas");
+        const ctx = canvas.getContext("2d");
+
+        // Game constants
+        const width = canvas.width;
+        const height = canvas.height;
+        const snakeBlock = 10;
+        const snakeSpeed = 15;
+
+        // Colors
+        const black = "#000000";
+        const white = "#FFFFFF";
+        const green = "#00FF00";
+        const red = "#FF0000";
+
+        // Game state
+        let snake = [];
+        let direction = "RIGHT";
+        let foodX, foodY;
+        let score = 0;
+        let highScore = localStorage.getItem("snakeHighScore") || 0;
+        let gameRunning = false;
+        let gameLoopId;
+
+        // UI elements
+        const scoreDisplay = document.getElementById("scoreDisplay");
+        const highScoreDisplay = document.getElementById("highScore");
+        const playAgainBtn = document.getElementById("playAgain");
+        highScoreDisplay.textContent = highScore;
+
+        // Initialize or reset game
+        function initGame() {
+            snake = [];
+            const initialX = Math.round(width / 2 / 10) * 10;
+            const initialY = Math.round(height / 2 / 10) * 10;
+            snake.push({ x: initialX, y: initialY });
+            direction = "RIGHT";
+            score = 0;
+            gameRunning = true;
+            generateFood();
+            updateScoreDisplay();
+            playAgainBtn.style.display = "none";
+            if (gameLoopId) clearTimeout(gameLoopId);
+            ctx.clearRect(0, 0, width, height); // Clear canvas
+            gameLoop();
+        }
+
+        // Generate food
+        function generateFood() {
+            while (true) {
+                foodX = Math.round(Math.random() * (width - snakeBlock) / 10) * 10;
+                foodY = Math.round(Math.random() * (height - snakeBlock) / 10) * 10;
+                if (!snake.some(segment => segment.x === foodX && segment.y === foodY)) {
+                    break;
+                }
+            }
+        }
+
+        // Keyboard controls
+        document.addEventListener("keydown", (event) => {
+            if (!gameRunning) return;
+            switch (event.key) {
+                case "ArrowLeft": if (direction !== "RIGHT") direction = "LEFT"; break;
+                case "ArrowRight": if (direction !== "LEFT") direction = "RIGHT"; break;
+                case "ArrowUp": if (direction !== "DOWN") direction = "UP"; break;
+                case "ArrowDown": if (direction !== "UP") direction = "DOWN"; break;
+            }
+        });
+
+        // Touch controls
+        document.getElementById("up").addEventListener("click", () => {
+            if (gameRunning && direction !== "DOWN") direction = "UP";
+        });
+        document.getElementById("left").addEventListener("click", () => {
+            if (gameRunning && direction !== "RIGHT") direction = "LEFT";
+        });
+        document.getElementById("down").addEventListener("click", () => {
+            if (gameRunning && direction !== "UP") direction = "DOWN";
+        });
+        document.getElementById("right").addEventListener("click", () => {
+            if (gameRunning && direction !== "LEFT") direction = "RIGHT";
+        });
+
+        // Play Again button
+        playAgainBtn.addEventListener("click", initGame);
+
+        // Main game loop
+        function gameLoop() {
+            if (!gameRunning) {
+                showGameOver();
+                return;
+            }
+
+            // Move snake
+            let head = { ...snake[0] };
+            switch (direction) {
+                case "LEFT": head.x -= snakeBlock; break;
+                case "RIGHT": head.x += snakeBlock; break;
+                case "UP": head.y -= snakeBlock; break;
+                case "DOWN": head.y += snakeBlock; break;
+            }
+
+            // Check collisions
+            if (head.x < 0 || head.x >= width || head.y < 0 || head.y >= height ||
+                snake.some(segment => segment.x === head.x && segment.y === head.y)) {
+                gameRunning = false;
+                updateHighScore();
+                showGameOver();
+                return;
+            }
+
+            // Check food
+            if (head.x === foodX && head.y === foodY) {
+                score++;
+                generateFood();
+                updateScoreDisplay();
+            } else {
+                snake.pop();
+            }
+
+            snake.unshift(head);
+
+            // Draw everything
+            ctx.fillStyle = black;
+            ctx.fillRect(0, 0, width, height);
+            ctx.fillStyle = green;
+            snake.forEach(segment => {
+                ctx.fillRect(segment.x, segment.y, snakeBlock, snakeBlock);
+            });
+            ctx.fillStyle = red;
+            ctx.fillRect(foodX, foodY, snakeBlock, snakeBlock);
+
+            gameLoopId = setTimeout(gameLoop, 1000 / snakeSpeed);
+        }
+
+        // Update score display
+        function updateScoreDisplay() {
+            scoreDisplay.textContent = `Score: ${score} | High Score: ${highScore}`;
+        }
+
+        // Update high score
+        function updateHighScore() {
+            if (score > highScore) {
+                highScore = score;
+                localStorage.setItem("snakeHighScore", highScore);
+                highScoreDisplay.textContent = highScore;
+            }
+        }
+
+        // Show game over with "Try Again" prompt
+        function showGameOver() {
+            ctx.fillStyle = white;
+            ctx.font = "20px Arial";
+            ctx.textAlign = "center";
+            ctx.fillText("Game Over", width / 2, height / 2);
+
+            // Immediate "Try Again" prompt
+            setTimeout(() => {
+                const tryAgain = confirm("Try Again?");
+                if (tryAgain) {
+                    initGame(); // Restart immediately if "OK"
+                } else {
+                    playAgainBtn.style.display = "block"; // Show "Play Again" if "Cancel"
+                }
+            }, 100); // Small delay to ensure "Game Over" is visible
+        }
+
+        // Start the game initially
+        initGame();
+    </script>
+</body>
+</html>
